@@ -1,4 +1,4 @@
-# Valgo Python SDK
+# Valgo API
 
 The official Python client for the Valgo API to upload, share, and retrieve datasets programmatically.
 
