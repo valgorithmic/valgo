@@ -1,6 +1,6 @@
 # Valgo Python SDK
 
-The official Python client for the Valgo API to upload, share, and retrieve datasets without managing transfer protocols or sending large files through an application server.
+The official Python client for the Valgo API to upload, share, and retrieve datasets programmatically.
 
 ## Installation
 
