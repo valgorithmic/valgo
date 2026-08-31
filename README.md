@@ -1,5 +1,8 @@
 # Valgo API
 
+[![CI](https://github.com/valgorithmic/valgo/actions/workflows/CI.yml/badge.svg)](https://github.com/valgorithmic/valgo/actions/workflows/CI.yml)
+[![PyPI](https://img.shields.io/pypi/v/valgo.svg)](https://pypi.org/project/valgo/)
+
 The official Python client for the Valgo API to upload, share, and retrieve datasets programmatically.
 
 ## Installation
