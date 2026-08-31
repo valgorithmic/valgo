@@ -145,3 +145,40 @@ def test_checksum_failure_removes_partial_download(tmp_path: Path) -> None:
     assert not destination.exists()
     assert not (tmp_path / ".dataset.bin.valgo-part").exists()
     client.close()
+
+
+def test_delete_exact_version_and_all_versions() -> None:
+    requests: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/v1/deletions"
+        body = json.loads(request.content)
+        requests.append(body)
+        return json_response(
+            200,
+            {
+                "status": "deleted",
+                "deleted_count": 2 if body["all_versions"] else 1,
+                "detached_count": 0,
+                "objects_deleted": 2 if body["all_versions"] else 1,
+                "objects_pending": 0,
+                "purge_after": None,
+                "storage_note": "S3 versioning may retain historical object versions.",
+            },
+        )
+
+    client = Valgo("valgo_live_test_secret", base_url="https://api.test")
+    client._http.close()
+    client._http = httpx.Client(transport=httpx.MockTransport(handler))
+
+    exact = client.delete("version-1")
+    assert exact.status == "deleted"
+    assert exact.deleted_count == 1
+    all_versions = client.delete("dataset.bin", all_versions=True)
+    assert all_versions.deleted_count == 2
+    assert requests == [
+        {"artifact": "version-1", "all_versions": False, "delete_source": False},
+        {"artifact": "dataset.bin", "all_versions": True, "delete_source": False},
+    ]
+    client.close()

@@ -9,7 +9,7 @@ from .errors import (
     ValgoError,
     ValidationError,
 )
-from .models import Artifact, BatchUploadResult, UploadFailure, UploadResult
+from .models import Artifact, BatchUploadResult, DeletionResult, UploadFailure, UploadResult
 
 __all__ = [
     "Artifact",
@@ -17,6 +17,7 @@ __all__ = [
     "AuthorizationError",
     "BatchUploadResult",
     "ConflictError",
+    "DeletionResult",
     "IntegrityError",
     "NotFoundError",
     "TransferError",
@@ -27,4 +28,4 @@ __all__ = [
     "ValgoError",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

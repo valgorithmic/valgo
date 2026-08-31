@@ -22,7 +22,7 @@ from .errors import (
     ValgoError,
     ValidationError,
 )
-from .models import Artifact, BatchUploadResult, UploadFailure, UploadResult
+from .models import Artifact, BatchUploadResult, DeletionResult, UploadFailure, UploadResult
 
 
 class Valgo:
@@ -40,10 +40,10 @@ class Valgo:
         self.max_workers = max(1, max_workers)
         self._http = httpx.Client(
             timeout=timeout,
-            headers={"Authorization": f"Bearer {self.api_key}", "User-Agent": "valgo-python/0.1.0"},
+            headers={"Authorization": f"Bearer {self.api_key}", "User-Agent": "valgo-python/0.2.0"},
         )
         # Presigned object-store requests must never inherit the Valgo bearer credential.
-        self._storage_http = httpx.Client(timeout=timeout, headers={"User-Agent": "valgo-python/0.1.0"})
+        self._storage_http = httpx.Client(timeout=timeout, headers={"User-Agent": "valgo-python/0.2.0"})
 
     def __enter__(self) -> Valgo:
         return self
@@ -295,3 +295,22 @@ class Valgo:
             temporary.unlink(missing_ok=True)
             raise
         return target
+
+    def delete(
+        self,
+        artifact_id_or_name: str,
+        *,
+        all_versions: bool = False,
+        delete_source: bool = False,
+    ) -> DeletionResult:
+        """Delete an exact version, or explicitly delete every version of a logical artifact."""
+        value = self._request(
+            "POST",
+            "/v1/deletions",
+            json={
+                "artifact": artifact_id_or_name,
+                "all_versions": all_versions,
+                "delete_source": delete_source,
+            },
+        )
+        return DeletionResult.from_dict(value)

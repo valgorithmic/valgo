@@ -81,6 +81,23 @@ client.download(uploaded.artifact_id, "downloads/dataset.parquet")
 
 The SDK verifies the downloaded size and SHA-256 checksum before replacing the destination file.
 
+## Deletion
+
+Delete one exact artifact version using the ID returned by an upload:
+
+```python
+result = client.delete(uploaded.artifact_id)
+print(result.status)
+```
+
+Deleting by logical name requires explicit confirmation that every version should be removed:
+
+```python
+client.delete("datasets/dataset.parquet", all_versions=True)
+```
+
+The API key must include the `data:delete` scope. Files uploaded through Valgo are removed from object storage. Customer-owned objects added with `attach()` are detached from Valgo by default; pass `delete_source=True` only when the source S3 object should also be removed. S3 versioning or Object Lock may retain historical versions according to the customer's AWS policy.
+
 ## Configuration
 
 | Environment variable | Purpose | Default |

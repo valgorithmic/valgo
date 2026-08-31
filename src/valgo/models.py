@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -54,3 +55,27 @@ class BatchUploadResult:
     @property
     def ok(self) -> bool:
         return not self.failures
+
+
+@dataclass(frozen=True)
+class DeletionResult:
+    status: str
+    deleted_count: int
+    detached_count: int
+    objects_deleted: int
+    objects_pending: int
+    purge_after: datetime | None = None
+    storage_note: str | None = None
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> DeletionResult:
+        purge_after = value.get("purge_after")
+        return cls(
+            status=value["status"],
+            deleted_count=value["deleted_count"],
+            detached_count=value["detached_count"],
+            objects_deleted=value["objects_deleted"],
+            objects_pending=value["objects_pending"],
+            purge_after=datetime.fromisoformat(purge_after) if purge_after else None,
+            storage_note=value.get("storage_note"),
+        )
