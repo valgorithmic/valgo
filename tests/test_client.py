@@ -13,7 +13,7 @@ def json_response(status: int, body: dict[str, object]) -> httpx.Response:
     return httpx.Response(status, content=json.dumps(body), headers={"content-type": "application/json"})
 
 
-def test_single_upload_and_download(tmp_path: Path) -> None:
+def test_single_upload_and_download(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     source = tmp_path / "dataset.bin"
     source.write_bytes(b"test-data")
     checksum = hashlib.sha256(b"test-data").hexdigest()
@@ -82,11 +82,15 @@ def test_single_upload_and_download(tmp_path: Path) -> None:
     client._storage_http.close()
     client._storage_http = httpx.Client(transport=httpx.MockTransport(handler))
 
-    uploaded = client.upload(source)
+    uploaded = client.upload(source, progress=True)
     assert uploaded.artifact_id == "version-1"
 
-    destination = client.download("artifact-1", tmp_path / "download.bin")
+    destination = client.download("artifact-1", tmp_path / "download.bin", progress=True)
     assert destination.read_bytes() == b"test-data"
+    progress_output = capsys.readouterr().err
+    assert "Uploading dataset.bin" in progress_output
+    assert "Downloading dataset.bin" in progress_output
+    assert progress_output.count("100.0%") >= 2
     client.close()
 
 
@@ -97,7 +101,7 @@ def test_directory_upload_collects_failures(tmp_path: Path, monkeypatch: pytest.
     (directory / "bad.bin").write_bytes(b"bad")
     client = Valgo("valgo_live_test_secret")
 
-    def fake_upload(path: Path, name: str, metadata: dict[str, object]) -> object:
+    def fake_upload(path: Path, name: str, metadata: dict[str, object], progress: object) -> object:
         if path.name == "bad.bin":
             raise RuntimeError("failed")
         return type("Result", (), {"path": path})()
@@ -184,7 +188,7 @@ def test_delete_exact_version_and_all_versions() -> None:
     client.close()
 
 
-def test_list_artifacts_with_filters_and_cursor() -> None:
+def test_list_artifacts_with_filters_and_cursor(capsys: pytest.CaptureFixture[str]) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
         assert request.url.path == "/v1/artifacts"
@@ -216,10 +220,31 @@ def test_list_artifacts_with_filters_and_cursor() -> None:
     client._http.close()
     client._http = httpx.Client(transport=httpx.MockTransport(handler))
 
-    page = client.list(prefix="reports/", all_versions=True, limit=25, cursor="next-page")
+    page = client.list(prefix="reports/", all_versions=True, limit=25, cursor="next-page", pretty=True)
     assert page.items[0].name == "reports/report.parquet"
     assert page.items[0].completed_at is not None
     assert page.next_cursor == "another-page"
+    table = capsys.readouterr().out
+    assert "Name" in table
+    assert "reports/report.parquet" in table
+    assert "42 B" in table
+    assert "version-2" in table
+    assert "page.next_cursor" in table
+    client.close()
+
+
+def test_pretty_list_handles_empty_page(capsys: pytest.CaptureFixture[str]) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/artifacts"
+        return json_response(200, {"items": [], "next_cursor": None})
+
+    client = Valgo("valgo_live_test_secret", base_url="https://api.test")
+    client._http.close()
+    client._http = httpx.Client(transport=httpx.MockTransport(handler))
+
+    page = client.list(pretty=True)
+    assert page.items == []
+    assert capsys.readouterr().out == "No artifacts found.\n"
     client.close()
 
 

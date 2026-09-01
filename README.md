@@ -1,7 +1,7 @@
 # Valgo API
 
 [![CI](https://github.com/valgorithmic/valgo/actions/workflows/CI.yml/badge.svg)](https://github.com/valgorithmic/valgo/actions/workflows/CI.yml)
-[![PyPI](https://img.shields.io/pypi/v/valgo.svg?v=1)](https://pypi.org/project/valgo/)
+[![PyPI](https://img.shields.io/pypi/v/valgo.svg?v=2)](https://pypi.org/project/valgo/)
 
 The official Python client for the Valgo API to upload, share, and retrieve datasets programmatically.
 
@@ -41,13 +41,14 @@ client = Valgo(api_key="valgo_live_...")
 
 ## Uploads
 
-Upload a file with an optional logical name and metadata:
+Upload a local file with an optional logical name and metadata. The first argument is the file's path on your computer. `name` is how the file is identified in shared storage for listing and later access; it does not need to match the local path.
 
 ```python
 uploaded = client.upload(
-    "data/dataset.parquet",
-    name="datasets/dataset.parquet",
+    "data/dataset.parquet",          # Local file
+    name="datasets/dataset.parquet", # Name in shared storage
     metadata={"source": "example"},
+    progress=True,
 )
 ```
 
@@ -70,7 +71,7 @@ Interrupted uploads are resumable. Retrying the same file continues the existing
 Download the latest version by logical name:
 
 ```python
-client.download("datasets/dataset.parquet", "downloads/dataset.parquet")
+client.download("datasets/dataset.parquet", "downloads/dataset.parquet", progress=True)
 ```
 
 Or retrieve an exact immutable version:
@@ -90,6 +91,12 @@ page = client.list()
 
 for artifact in page.items:
     print(artifact.name, artifact.version, artifact.size_bytes)
+```
+
+Or print a formatted table directly while retaining the page result:
+
+```python
+page = client.list(pretty=True)
 ```
 
 Filter by logical path prefix or include version history:
