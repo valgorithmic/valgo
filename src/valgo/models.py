@@ -15,9 +15,11 @@ class Artifact:
     size_bytes: int
     checksum_sha256: str | None
     storage_mode: str
+    completed_at: datetime | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> Artifact:
+        completed_at = value.get("completed_at")
         return cls(
             artifact_id=value["artifact_id"],
             artifact_version_id=value["artifact_version_id"],
@@ -26,6 +28,20 @@ class Artifact:
             size_bytes=value["size_bytes"],
             checksum_sha256=value.get("checksum_sha256"),
             storage_mode=value["storage_mode"],
+            completed_at=datetime.fromisoformat(completed_at) if completed_at else None,
+        )
+
+
+@dataclass(frozen=True)
+class ArtifactPage:
+    items: list[Artifact]
+    next_cursor: str | None = None
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> ArtifactPage:
+        return cls(
+            items=[Artifact.from_dict(item) for item in value["items"]],
+            next_cursor=value.get("next_cursor"),
         )
 
 

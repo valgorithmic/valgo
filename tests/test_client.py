@@ -6,7 +6,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from valgo import BatchUploadResult, IntegrityError, Valgo
+from valgo import BatchUploadResult, IntegrityError, UploadResult, Valgo
 
 
 def json_response(status: int, body: dict[str, object]) -> httpx.Response:
@@ -181,4 +181,73 @@ def test_delete_exact_version_and_all_versions() -> None:
         {"artifact": "version-1", "all_versions": False, "delete_source": False},
         {"artifact": "dataset.bin", "all_versions": True, "delete_source": False},
     ]
+    client.close()
+
+
+def test_list_artifacts_with_filters_and_cursor() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert request.url.path == "/v1/artifacts"
+        assert request.url.params["prefix"] == "reports/"
+        assert request.url.params["all_versions"] == "true"
+        assert request.url.params["limit"] == "25"
+        assert request.url.params["cursor"] == "next-page"
+        return json_response(
+            200,
+            {
+                "items": [
+                    {
+                        "artifact_id": "artifact-1",
+                        "artifact_version_id": "version-2",
+                        "name": "reports/report.parquet",
+                        "version": 2,
+                        "size_bytes": 42,
+                        "checksum_sha256": "a" * 64,
+                        "storage_mode": "hosted",
+                        "status": "completed",
+                        "completed_at": "2026-08-31T12:00:00Z",
+                    }
+                ],
+                "next_cursor": "another-page",
+            },
+        )
+
+    client = Valgo("valgo_live_test_secret", base_url="https://api.test")
+    client._http.close()
+    client._http = httpx.Client(transport=httpx.MockTransport(handler))
+
+    page = client.list(prefix="reports/", all_versions=True, limit=25, cursor="next-page")
+    assert page.items[0].name == "reports/report.parquet"
+    assert page.items[0].completed_at is not None
+    assert page.next_cursor == "another-page"
+    client.close()
+
+
+def test_completed_upload_resume_preserves_storage_mode(tmp_path: Path) -> None:
+    source = tmp_path / "existing.bin"
+    source.write_bytes(b"existing")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/uploads"
+        return json_response(
+            200,
+            {
+                "transfer_id": "transfer-1",
+                "artifact_id": "artifact-1",
+                "artifact_version_id": "version-1",
+                "name": "existing.bin",
+                "version": 1,
+                "storage_mode": "hosted",
+                "status": "completed",
+            },
+        )
+
+    client = Valgo("valgo_live_test_secret", base_url="https://api.test")
+    client._http.close()
+    client._http = httpx.Client(transport=httpx.MockTransport(handler))
+
+    uploaded = client.upload(source)
+    assert isinstance(uploaded, UploadResult)
+    assert uploaded.resumed is True
+    assert uploaded.artifact.storage_mode == "hosted"
     client.close()

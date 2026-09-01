@@ -81,6 +81,26 @@ client.download(uploaded.artifact_id, "downloads/dataset.parquet")
 
 The SDK verifies the downloaded size and SHA-256 checksum before replacing the destination file.
 
+## Listing
+
+List the latest visible version of each artifact for the API key's integration:
+
+```python
+page = client.list()
+
+for artifact in page.items:
+    print(artifact.name, artifact.version, artifact.size_bytes)
+```
+
+Filter by logical path prefix or include version history:
+
+```python
+page = client.list(prefix="reports/", all_versions=True, limit=100)
+next_page = client.list(prefix="reports/", all_versions=True, limit=100, cursor=page.next_cursor)
+```
+
+Listing requires `data:read`. Deleted, pending-purge, incomplete, and other integrations' artifacts are never returned.
+
 ## Deletion
 
 Delete one exact artifact version using the ID returned by an upload:

@@ -22,7 +22,7 @@ from .errors import (
     ValgoError,
     ValidationError,
 )
-from .models import Artifact, BatchUploadResult, DeletionResult, UploadFailure, UploadResult
+from .models import Artifact, ArtifactPage, BatchUploadResult, DeletionResult, UploadFailure, UploadResult
 
 
 class Valgo:
@@ -40,10 +40,10 @@ class Valgo:
         self.max_workers = max(1, max_workers)
         self._http = httpx.Client(
             timeout=timeout,
-            headers={"Authorization": f"Bearer {self.api_key}", "User-Agent": "valgo-python/0.2.0"},
+            headers={"Authorization": f"Bearer {self.api_key}", "User-Agent": "valgo-python/0.3.0"},
         )
         # Presigned object-store requests must never inherit the Valgo bearer credential.
-        self._storage_http = httpx.Client(timeout=timeout, headers={"User-Agent": "valgo-python/0.2.0"})
+        self._storage_http = httpx.Client(timeout=timeout, headers={"User-Agent": "valgo-python/0.3.0"})
 
     def __enter__(self) -> Valgo:
         return self
@@ -158,7 +158,7 @@ class Valgo:
                 version=initiation["version"],
                 size_bytes=size,
                 checksum_sha256=checksum,
-                storage_mode="unknown",
+                storage_mode=initiation.get("storage_mode", "unknown"),
             )
             return UploadResult(path, artifact, initiation["transfer_id"], resumed=True)
         if initiation["strategy"] == "single":
@@ -295,6 +295,22 @@ class Valgo:
             temporary.unlink(missing_ok=True)
             raise
         return target
+
+    def list(
+        self,
+        *,
+        prefix: str | None = None,
+        all_versions: bool = False,
+        limit: int = 100,
+        cursor: str | None = None,
+    ) -> ArtifactPage:
+        """List accessible artifacts for this API key's integration."""
+        params: dict[str, Any] = {"all_versions": all_versions, "limit": limit}
+        if prefix is not None:
+            params["prefix"] = prefix
+        if cursor is not None:
+            params["cursor"] = cursor
+        return ArtifactPage.from_dict(self._request("GET", "/v1/artifacts", params=params))
 
     def delete(
         self,
